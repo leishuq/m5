@@ -1,4 +1,4 @@
-const mr = function (config) {
+const mr = function(config) {
   let context = {};
   context.gid = config.gid || 'all';
 
