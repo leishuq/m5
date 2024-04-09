@@ -1,4 +1,3 @@
-const distribution = require('../../distribution');
 const id = require('../util/id');
 
 const mr = function (config) {
@@ -12,9 +11,11 @@ const mr = function (config) {
       let mapped = [];
       let reduced = [];
       let cnt = 0;
+      let shufflecnt = 0;
+      let reduceCnt = 0;
 
-      function shuffleReduce() {
-        console.log('!!map', mapped);
+      //todo: make this distribution level/multiple nodea
+      function shuffleReduce(nodes, nids) {
         // Simulate shuffle phase (group by key)
         let shuffle = mapped.reduce((acc, curr) => {
           const key = Object.keys(curr)[0];
@@ -26,8 +27,96 @@ const mr = function (config) {
           return acc;
         }, {});
         console.log('!!! shuffle', shuffle);
-        reduced = Object.keys(shuffle).map((k) => reduce(k, shuffle[k]));
-        callback(null, reduced);
+
+        console.log('!!map', mapped);
+        // Simulate shuffle phase (group by key)
+        Object.entries(shuffle).forEach((pair) => {
+          //shuffling
+          const k = pair[0];
+          const v = pair[1];
+          const KID = id.getID(k);
+          const hashValue = context.hash(KID, nids).substring(0, 5);
+          const reducerNode = nodes[hashValue];
+          //store in reducer nodes
+          const storePutRemote = {
+            service: 'store',
+            method: 'put',
+            node: {
+              ip: reducerNode.ip,
+              port: reducerNode.port,
+            },
+          };
+          global.distribution.local.comm.send(
+            [v, {key: k, gid: context.gid}],
+            storePutRemote,
+            (e, v) => {
+              // register reduce function
+              const putReducerRPC = {
+                service: 'routes',
+                method: 'put',
+                node: {
+                  ip: reducerNode.ip,
+                  port: reducerNode.port,
+                },
+              };
+
+              global.distribution.local.comm.send(
+                [reduce, 'reduceService'],
+                putReducerRPC,
+                (e, v) => {
+                  //start reducing
+                  shufflecnt++;
+                  if (shufflecnt == Object.keys(shuffle).length) {
+                    Object.keys(shuffle).forEach((k) => {
+                      const kid = id.getID(k);
+                      const hashV = context.hash(kid, nids).substring(0, 5);
+                      const n = nodes[hashV];
+                      const storeGetRPC = {
+                        service: 'store',
+                        method: 'get',
+                        node: {
+                          ip: n.ip,
+                          port: n.port,
+                        },
+                      };
+                      global.distribution.local.comm.send(
+                        [{key: k, gid: context.gid}],
+                        storeGetRPC,
+                        (e, value) => {
+                          console.log('value', value);
+                          const getReduceRPC = {
+                            service: 'routes',
+                            method: 'get',
+                            node: {
+                              ip: n.ip,
+                              port: n.port,
+                            },
+                          };
+                          global.distribution.local.comm.send(
+                            ['reduceService'],
+                            getReduceRPC,
+                            (e, reduceService) => {
+                              console.log(
+                                'reduceRPC!!',
+                                reduceService.toString(),
+                              );
+                              console.log('kv pair !!', k, value);
+                              reduced.push(reduceService(k, value));
+                              reduceCnt++;
+                              if (reduceCnt == Object.keys(shuffle).length) {
+                                callback(null, reduced);
+                              }
+                            },
+                          );
+                        },
+                      );
+                    });
+                  }
+                },
+              );
+            },
+          );
+        });
       }
 
       global.distribution[context.gid].status.get('nid', (e, nids) => {
@@ -67,15 +156,9 @@ const mr = function (config) {
                       getMapRemote,
                       (e, service) => {
                         console.log('??', service.toString());
-
                         const mapResult = service(key, value);
                         console.log('@@', mapResult);
-                        const storePutRemote = {
-                          service: 'store',
-                          method: 'put',
-                          node: {ip: mapperNode.ip, port: mapperNode.port},
-                        };
-
+                        //store in reducer node
                         if (Array.isArray(mapResult)) {
                           mapped.push(...mapResult);
                         } else {
@@ -83,7 +166,7 @@ const mr = function (config) {
                         }
                         cnt++;
                         if (cnt == keys.length) {
-                          shuffleReduce();
+                          shuffleReduce(nodes, nids);
                         }
                       },
                     );
@@ -97,25 +180,4 @@ const mr = function (config) {
     },
   };
 };
-
-// console.log('keys ??', keys);
-// keys.forEach((key) => {
-//   let mapResult;
-//   global.distribution[context.gid].store.get(key, (e, v) => {
-//     cnt++;
-//     if (e) {
-//       callback(new Error('store get fail'));
-//     } else {
-//       mapResult = map(key, v);
-//       if (Array.isArray(mapResult)) {
-//         mapped.push(...mapResult);
-//       } else {
-//         mapped.push(mapResult);
-//       }
-//       if (cnt == keys.length) {
-//         shuffleReduce();
-//       }
-//     }
-//   });
-// });
 module.exports = mr;
