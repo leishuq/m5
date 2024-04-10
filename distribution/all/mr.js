@@ -7,7 +7,7 @@ const mr = function (config) {
 
   return {
     exec: (config, callback) => {
-      const {keys, map, reduce} = config;
+      const {keys, map, reduce, memory} = config; //additional feature -- memory
       let mapped = [];
       let reduced = [];
       let cnt = 0;
@@ -39,7 +39,7 @@ const mr = function (config) {
           const reducerNode = nodes[hashValue];
           //store in reducer nodes
           const storePutRemote = {
-            service: 'store',
+            service: memory ? 'mem' : 'store',
             method: 'put',
             node: {
               ip: reducerNode.ip,
@@ -72,7 +72,7 @@ const mr = function (config) {
                       const hashV = context.hash(kid, nids).substring(0, 5);
                       const n = nodes[hashV];
                       const storeGetRPC = {
-                        service: 'store',
+                        service: memory ? 'mem' : 'store',
                         method: 'get',
                         node: {
                           ip: n.ip,
@@ -100,7 +100,6 @@ const mr = function (config) {
                                 'reduceRPC!!',
                                 reduceService.toString(),
                               );
-                              console.log('kv pair !!', k, value);
                               reduced.push(reduceService(k, value));
                               reduceCnt++;
                               if (reduceCnt == Object.keys(shuffle).length) {
@@ -136,7 +135,7 @@ const mr = function (config) {
               putMapRemote,
               (e, v) => {
                 const storeGetRemote = {
-                  service: 'store',
+                  service: memory ? 'mem' : 'store',
                   method: 'get',
                   node: {ip: mapperNode.ip, port: mapperNode.port},
                 };
