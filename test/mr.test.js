@@ -76,7 +76,8 @@ afterAll((done) => {
 
 function sanityCheck(mapper, reducer, dataset, expected, done) {
   let mapped = dataset.map((o) =>
-    mapper(Object.keys(o)[0], o[Object.keys(o)[0]]));
+    mapper(Object.keys(o)[0], o[Object.keys(o)[0]]),
+  );
   /* Flatten the array. */
   mapped = mapped.flat();
   let shuffled = mapped.reduce((a, b) => {
@@ -113,13 +114,13 @@ test('(25 pts) all.mr:ncdc', (done) => {
 
   let dataset = [
     {'000': '006701199099999 1950 0515070049999999N9 +0000 1+9999'},
-    {'106': '004301199099999 1950 0515120049999999N9 +0022 1+9999'},
-    {'212': '004301199099999 1950 0515180049999999N9 -0011 1+9999'},
-    {'318': '004301265099999 1949 0324120040500001N9 +0111 1+9999'},
-    {'424': '004301265099999 1949 0324180040500001N9 +0078 1+9999'},
+    {106: '004301199099999 1950 0515120049999999N9 +0022 1+9999'},
+    {212: '004301199099999 1950 0515180049999999N9 -0011 1+9999'},
+    {318: '004301265099999 1949 0324120040500001N9 +0111 1+9999'},
+    {424: '004301265099999 1949 0324180040500001N9 +0078 1+9999'},
   ];
 
-  let expected = [{'1950': 22}, {'1949': 111}];
+  let expected = [{1950: 22}, {1949: 111}];
 
   /* Sanity check: map and reduce locally */
   sanityCheck(m1, r1, dataset, expected, done);
@@ -132,7 +133,6 @@ test('(25 pts) all.mr:ncdc', (done) => {
       } catch (e) {
         done(e);
       }
-
 
       distribution.ncdc.mr.exec({keys: v, map: m1, reduce: r1}, (e, v) => {
         try {
@@ -189,16 +189,26 @@ test('(25 pts) all.mr:dlib', (done) => {
   ];
 
   let expected = [
-    {It: 1}, {was: 10},
-    {the: 10}, {best: 1},
-    {of: 10}, {'times,': 2},
-    {it: 9}, {worst: 1},
-    {age: 2}, {'wisdom,': 1},
-    {'foolishness,': 1}, {epoch: 2},
-    {'belief,': 1}, {'incredulity,': 1},
-    {season: 2}, {'Light,': 1},
-    {'Darkness,': 1}, {spring: 1},
-    {'hope,': 1}, {winter: 1},
+    {It: 1},
+    {was: 10},
+    {the: 10},
+    {best: 1},
+    {of: 10},
+    {'times,': 2},
+    {it: 9},
+    {worst: 1},
+    {age: 2},
+    {'wisdom,': 1},
+    {'foolishness,': 1},
+    {epoch: 2},
+    {'belief,': 1},
+    {'incredulity,': 1},
+    {season: 2},
+    {'Light,': 1},
+    {'Darkness,': 1},
+    {spring: 1},
+    {'hope,': 1},
+    {winter: 1},
     {'despair,': 1},
   ];
 

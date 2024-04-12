@@ -74,27 +74,6 @@ afterAll((done) => {
   });
 });
 
-function sanityCheck(mapper, reducer, dataset, expected, done) {
-  let mapped = dataset.map((o) =>
-    mapper(Object.keys(o)[0], o[Object.keys(o)[0]]),
-  );
-  /* Flatten the array. */
-  mapped = mapped.flat();
-  let shuffled = mapped.reduce((a, b) => {
-    let key = Object.keys(b)[0];
-    if (a[key] === undefined) a[key] = [];
-    a[key].push(b[key]);
-    return a;
-  }, {});
-  let reduced = Object.keys(shuffled).map((k) => reducer(k, shuffled[k]));
-
-  try {
-    expect(reduced).toEqual(expect.arrayContaining(expected));
-  } catch (e) {
-    done(e);
-  }
-}
-
 test('crawler', (done) => {
   let m1 = (key, value) => {
     const https = global.require('https');
@@ -298,15 +277,6 @@ test('in-memory inverted index', (done) => {
     {page1: 'bond tbill CD CD'},
     {page2: 'property tbill bond'},
     {page3: 'tbond tbill options'},
-  ];
-
-  const expected = [
-    {bond: 'page1 page2'},
-    {tbill: 'page1 page2 page3'},
-    {CD: 'page1'},
-    {property: 'page2'},
-    {tbond: 'page3'},
-    {options: 'page3'},
   ];
 
   /* Now we do the same thing but on the cluster */
