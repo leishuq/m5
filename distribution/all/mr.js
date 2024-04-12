@@ -7,7 +7,8 @@ const mr = function (config) {
 
   return {
     exec: (config, callback) => {
-      const {keys, map, reduce, memory} = config; //additional feature -- memory
+      const {keys, map, reduce, memory, isAsync = false} = config; //additional feature -- memory
+
       let mapped = [];
       let reduced = [];
       let cnt = 0;
@@ -26,9 +27,9 @@ const mr = function (config) {
           acc[key].push(value);
           return acc;
         }, {});
-        console.log('!!! shuffle', shuffle);
+        // console.log('!!! shuffle', shuffle);
 
-        console.log('!!map', mapped);
+        // console.log('!!map', mapped);
         // Simulate shuffle phase (group by key)
         Object.entries(shuffle).forEach((pair) => {
           //shuffling
@@ -143,7 +144,7 @@ const mr = function (config) {
                   [{key: key, gid: context.gid}],
                   storeGetRemote,
                   (e, value) => {
-                    console.log('!!', value);
+                    // console.log('!!', value);
 
                     const getMapRemote = {
                       service: 'routes',
@@ -155,17 +156,35 @@ const mr = function (config) {
                       getMapRemote,
                       (e, service) => {
                         console.log('??', service.toString());
-                        const mapResult = service(key, value);
-                        console.log('@@', mapResult);
-                        //store in reducer node
-                        if (Array.isArray(mapResult)) {
-                          mapped.push(...mapResult);
+                        if (isAsync == true) {
+                          service(key, value).then((mapResult) => {
+                            // console.log('map result:', mapResult);
+                            //store in reducer node
+                            if (Array.isArray(mapResult)) {
+                              mapped.push(...mapResult);
+                            } else {
+                              mapped.push(mapResult);
+                            }
+                            cnt++;
+                            if (cnt == keys.length) {
+                              // console.log('shuffle starts: ');
+                              shuffleReduce(nodes, nids);
+                            }
+                          });
                         } else {
-                          mapped.push(mapResult);
-                        }
-                        cnt++;
-                        if (cnt == keys.length) {
-                          shuffleReduce(nodes, nids);
+                          const mapResult = service(key, value);
+                          console.log('map result:', mapResult);
+                          //store in reducer node
+                          if (Array.isArray(mapResult)) {
+                            mapped.push(...mapResult);
+                          } else {
+                            mapped.push(mapResult);
+                          }
+                          cnt++;
+                          if (cnt == keys.length) {
+                            console.log('shuffle starts: ');
+                            shuffleReduce(nodes, nids);
+                          }
                         }
                       },
                     );
